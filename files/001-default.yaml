@@ -1,0 +1,8 @@
+summary: Initial Magma Orcestrator NMS Magmalte config
+description: |
+  Magma Orcestrator NMS Magmalte service
+services:
+  magmalte:
+    override: replace
+    command: yarn run start:prod
+    startup: enabled
