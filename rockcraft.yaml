@@ -1,0 +1,53 @@
+name: magma-orc8r-nms-magmalte
+version: "1.6.0"
+base: ubuntu:18.04
+summary: Magma Orchestrator NMS Magmalte
+description: Magma Orcestrator NMS Magmalte
+license: Apache-2.0
+platforms:
+  amd64:
+
+entrypoint: ["/bin/pebble", "run", "-v"]
+
+parts:
+
+  magma-nms-magmalte:
+    plugin: dump
+    source: https://github.com/magma/magma
+    source-type: git
+    source-tag: v1.6
+    build-environment:
+      - PUPPETEER_SKIP_DOWNLOAD: "true"
+    build-snaps:
+      - node/12/stable
+    stage-snaps:
+      - node/10/stable
+    stage-packages:
+      - bash
+    override-build: |
+      set -x
+      npm install --global yarn
+
+      # Install dependencies
+      mkdir -p ${CRAFT_PART_INSTALL}/usr/src/packages/magmalte/
+      mkdir -p ${CRAFT_PART_INSTALL}/usr/src/packages/fbcnms-magma-api/
+      cp ${CRAFT_PART_SRC}/nms/app/package.json ${CRAFT_PART_SRC}/nms/app/yarn.lock ${CRAFT_PART_SRC}/nms/app/babel.config.js ${CRAFT_PART_INSTALL}/usr/src/
+      cp ${CRAFT_PART_SRC}/nms/app/packages/magmalte/package.json ${CRAFT_PART_INSTALL}/usr/src/packages/magmalte/
+      cp ${CRAFT_PART_SRC}/nms/app/packages/fbcnms-magma-api/package.json ${CRAFT_PART_INSTALL}/usr/src/packages/fbcnms-magma-api/
+      cd ${CRAFT_PART_INSTALL}/usr/src/
+      yarn install --mutex network --frozen-lockfile
+      yarn cache clean
+
+      # Build
+      cp -rf ${CRAFT_PART_SRC}/nms/app/packages/magmalte/* ${CRAFT_PART_INSTALL}/usr/src/packages/magmalte/
+      cp -rf ${CRAFT_PART_SRC}/nms/app/packages/fbcnms-magma-api/* ${CRAFT_PART_INSTALL}/usr/src/packages/fbcnms-magma-api/
+      cd ${CRAFT_PART_INSTALL}/usr/src/packages/magmalte
+      yarn run build
+
+  default-config:
+    plugin: dump
+    source: files
+    organize:
+      001-default.yaml: var/lib/pebble/default/layers/001-default.yaml
+    stage:
+      - var/lib/pebble/default/layers/001-default.yaml
