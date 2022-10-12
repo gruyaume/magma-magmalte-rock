@@ -7,7 +7,23 @@ license: Apache-2.0
 platforms:
   amd64:
 
-entrypoint: ["/bin/pebble", "run", "-v"]
+cmd: ["/bin/yarn", "run", "--cwd=/usr/src/packages/magmalte/", "start:prod"]
+
+env:
+  - MYSQL_HOST: postgres
+  - MYSQL_PORT: 5432
+  - MYSQL_DB: magma
+  - MYSQL_USER: username
+  - MYSQL_PASS: password
+  - MYSQL_DIALECT: postgres
+  - MAPBOX_ACCESS_TOKEN: ""
+  - PUPPETEER_SKIP_DOWNLOAD: true
+  - USER_GRAFANA_ADDRESS: http://grafana.local
+  - API_CERT_FILENAME: /run/secrets/admin_operator.pem
+  - API_PRIVATE_KEY_FILENAME: /run/secrets/admin_operator.key.pem
+  - API_HOST: orc8r-nginx-proxy.my_namespace.svc.cluster.local
+  - PORT: 8081
+  - HOST: 0.0.0.0
 
 parts:
 
@@ -20,8 +36,6 @@ parts:
       - PUPPETEER_SKIP_DOWNLOAD: "true"
     build-snaps:
       - node/12/stable
-    stage-snaps:
-      - node/10/stable
     stage-packages:
       - bash
     override-build: |
@@ -44,10 +58,23 @@ parts:
       cd ${CRAFT_PART_INSTALL}/usr/src/packages/magmalte
       yarn run build
 
-  default-config:
-    plugin: dump
-    source: files
-    organize:
-      001-default.yaml: var/lib/pebble/default/layers/001-default.yaml
-    stage:
-      - var/lib/pebble/default/layers/001-default.yaml
+      # Copy wait-for-it file
+      mkdir -p ${CRAFT_PART_INSTALL}/usr/local/bin
+      cp ${CRAFT_PART_SRC}/nms/app/packages/magmalte/wait-for-it.sh ${CRAFT_PART_INSTALL}/usr/local/bin
+    override-stage: |
+      set -x
+      curl -s https://nodejs.org/dist/v10.24.1/node-v10.24.1-linux-x64.tar.gz | tar xzf - -C ${CRAFT_PART_INSTALL}/ --no-same-owner --strip-components=1
+      npm install yarn --global
+      craftctl default
+
+  busybox:
+    plugin: nil
+    source: .
+    stage-packages:
+      - wget
+    override-stage: |
+      set -x
+      mkdir -p ${CRAFT_PART_INSTALL}/usr/local/bin/
+      wget -O ${CRAFT_PART_INSTALL}/usr/local/bin/busybox https://busybox.net/downloads/binaries/1.31.0-defconfig-multiarch-musl/busybox-i686
+      chmod +x ${CRAFT_PART_INSTALL}/usr/local/bin/busybox
+      craftctl default
